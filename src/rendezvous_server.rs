@@ -693,7 +693,23 @@ impl RendezvousServer {
         // fetch local addrs if in same intranet.
         // because punch hole won't work if in the same intranet,
         // all routers will drop such self-connections.
-        if let Some(peer) = self.pm.get(&id).await {
+        if let Some(peer) = self.pm.get_no_login(&id).await {
+            let mut msg_out = RendezvousMessage::new();
+            msg_out.set_punch_hole_response(PunchHoleResponse {
+                failure: punch_hole_response::Failure::NO_LOGIN.into(),
+                ..Default::default()
+            });
+            Ok((msg_out, None))
+        }
+        else if let Some(peer) = self.pm.get_expired(&id).await {
+            let mut msg_out = RendezvousMessage::new();
+            msg_out.set_punch_hole_response(PunchHoleResponse {
+                failure: punch_hole_response::Failure::EXPIRED.into(),
+                ..Default::default()
+            });
+            Ok((msg_out, None))
+        }
+        else if let Some(peer) = self.pm.get(&id).await {
             let (elapsed, peer_addr) = {
                 let r = peer.read().await;
                 (r.last_reg_time.elapsed().as_millis() as i32, r.socket_addr)
@@ -719,12 +735,12 @@ impl RendezvousServer {
             }
             let same_intranet: bool = !ws
                 && (peer_is_lan && is_lan || {
-                    match (peer_addr, addr) {
-                        (SocketAddr::V4(a), SocketAddr::V4(b)) => a.ip() == b.ip(),
-                        (SocketAddr::V6(a), SocketAddr::V6(b)) => a.ip() == b.ip(),
-                        _ => false,
-                    }
-                });
+                match (peer_addr, addr) {
+                    (SocketAddr::V4(a), SocketAddr::V4(b)) => a.ip() == b.ip(),
+                    (SocketAddr::V6(a), SocketAddr::V6(b)) => a.ip() == b.ip(),
+                    _ => false,
+                }
+            });
             let socket_addr = AddrMangle::encode(addr).into();
             if same_intranet {
                 log::debug!(
@@ -1168,11 +1184,11 @@ impl RendezvousServer {
                             pk,
                             ..Default::default()
                         }
-                        .write_to_bytes()
-                        .unwrap_or_default(),
+                            .write_to_bytes()
+                            .unwrap_or_default(),
                         self.inner.sk.as_ref().unwrap(),
                     )
-                    .into()
+                        .into()
                 }
                 _ => Bytes::new(),
             }

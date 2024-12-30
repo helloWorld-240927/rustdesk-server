@@ -88,8 +88,8 @@ impl Database {
             create index if not exists index_peer_status on peer (status);
         "
         )
-        .execute(self.pool.get().await?.deref_mut())
-        .await?;
+            .execute(self.pool.get().await?.deref_mut())
+            .await?;
         Ok(())
     }
 
@@ -99,10 +99,28 @@ impl Database {
             "select guid, id, uuid, pk, user, status, info from peer where id = ?",
             id
         )
-        .fetch_optional(self.pool.get().await?.deref_mut())
-        .await?)
+            .fetch_optional(self.pool.get().await?.deref_mut())
+            .await?)
+    }
+    pub async fn get_peer_expired(&self, id: &str) -> ResultType<Option<Peer>> {
+        Ok(sqlx::query_as!(
+            Peer,
+            "select guid, id, uuid, pk, user, status, info from peer where id = ? and status = -1",
+            id
+        )
+            .fetch_optional(self.pool.get().await?.deref_mut())
+            .await?)
     }
 
+    pub async fn get_peer_no_login(&self, id: &str) -> ResultType<Option<Peer>> {
+        Ok(sqlx::query_as!(
+            Peer,
+            "select guid, id, uuid, pk, user, status, info from peer where id = ? and status = 0",
+            id
+        )
+            .fetch_optional(self.pool.get().await?.deref_mut())
+            .await?)
+    }
     pub async fn insert_peer(
         &self,
         id: &str,
@@ -119,8 +137,8 @@ impl Database {
             pk,
             info
         )
-        .execute(self.pool.get().await?.deref_mut())
-        .await?;
+            .execute(self.pool.get().await?.deref_mut())
+            .await?;
         Ok(guid)
     }
 
@@ -138,8 +156,8 @@ impl Database {
             info,
             guid
         )
-        .execute(self.pool.get().await?.deref_mut())
-        .await?;
+            .execute(self.pool.get().await?.deref_mut())
+            .await?;
         Ok(())
     }
 }

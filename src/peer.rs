@@ -153,6 +153,44 @@ impl PeerMap {
         }
         None
     }
+    #[inline]
+    pub(crate) async fn get_expired(&self, id: &str) -> Option<LockPeer> {
+        let p = self.map.read().await.get(id).cloned();
+        if let Ok(Some(v)) = self.db.get_peer_expired(id).await {
+            let peer = Peer {
+                guid: v.guid,
+                uuid: v.uuid.into(),
+                pk: v.pk.into(),
+                // user: v.user,
+                info: serde_json::from_str::<PeerInfo>(&v.info).unwrap_or_default(),
+                // disabled: v.status == Some(0),
+                ..Default::default()
+            };
+            let peer = Arc::new(RwLock::new(peer));
+            self.map.write().await.insert(id.to_owned(), peer.clone());
+            return Some(peer);
+        }
+        None
+    }
+    #[inline]
+    pub(crate) async fn get_no_login(&self, id: &str) -> Option<LockPeer> {
+        let p = self.map.read().await.get(id).cloned();
+        if let Ok(Some(v)) = self.db.get_peer_no_login(id).await {
+            let peer = Peer {
+                guid: v.guid,
+                uuid: v.uuid.into(),
+                pk: v.pk.into(),
+                // user: v.user,
+                info: serde_json::from_str::<PeerInfo>(&v.info).unwrap_or_default(),
+                // disabled: v.status == Some(0),
+                ..Default::default()
+            };
+            let peer = Arc::new(RwLock::new(peer));
+            self.map.write().await.insert(id.to_owned(), peer.clone());
+            return Some(peer);
+        }
+        None
+    }
 
     #[inline]
     pub(crate) async fn get_or(&self, id: &str) -> LockPeer {
